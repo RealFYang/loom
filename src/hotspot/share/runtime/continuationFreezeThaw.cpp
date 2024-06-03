@@ -1875,10 +1875,11 @@ static inline int freeze_internal(JavaThread* current, intptr_t* const sp, int f
 
   if (preempt) {
     freeze.set_last_frame();  // remember last frame
-    if (freeze_kind == freeze_on_wait AARCH64_ONLY(|| true)) {
+    if (freeze_kind == freeze_on_wait AARCH64_ONLY(|| true) RISCV64_ONLY(|| true)) {
       // Force freeze slow path on wait to avoid dealing with native wrapper frames on the fast
-      // path. For aarch64 force slow path always for now. It needs extra instructions to correctly
-      // set the last pc we copy into the stackChunk, since it will not necessarily be at sp[-1]).
+      // path. For aarch64 and riscv64 force slow path always for now. It needs extra instructions
+      // to correctly set the last pc we copy into the stackChunk, since it will not necessarily
+      // be at sp[-1]).
       current->push_cont_fastpath(current->last_Java_sp());
     }
   }

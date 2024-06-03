@@ -953,6 +953,9 @@ final class VirtualThread extends BaseVirtualThread {
         boolean yielded = false;
         try {
             yielded = yieldContinuation();  // may throw
+            if (!yielded) {
+                throw new RuntimeException("Failed to yield vthread!");
+            }
         } finally {
             assert (Thread.currentThread() == this) && (yielded == (state() == RUNNING));
             if (!yielded) {

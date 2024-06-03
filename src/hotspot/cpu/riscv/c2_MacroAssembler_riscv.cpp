@@ -54,7 +54,7 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg,
   Register tmp = tmp2Reg;
   Label object_has_monitor;
   // Finish fast lock successfully. MUST branch to with flag == 0
-  Label locked;
+  Label locked_count, locked_no_count;
   // Finish fast lock unsuccessfully. slow_path MUST branch to with flag != 0
   Label slow_path;
 
@@ -92,7 +92,7 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg,
     // On failure disp_hdr contains the possibly locked markWord.
     cmpxchg(/*memory address*/oop, /*expected value*/tmp, /*new value*/box, Assembler::int64,
             Assembler::aq, Assembler::rl, /*result*/disp_hdr);
-    beq(disp_hdr, tmp, locked);
+    beq(disp_hdr, tmp, locked_count);
 
     assert(oopDesc::mark_offset_in_bytes() == 0, "offset of _mark is not 0");
 
@@ -104,24 +104,26 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg,
     // markWord of object (disp_hdr) with the stack pointer.
     sub(disp_hdr, disp_hdr, sp);
     mv(tmp, (intptr_t) (~(os::vm_page_size()-1) | (uintptr_t)markWord::lock_mask_in_place));
-    // If (mark & lock_mask) == 0 and mark - sp < page_size, we are stack-locking and goto label locked,
-    // hence we can store 0 as the displaced header in the box, which indicates that it is a
-    // recursive lock.
+    // If (mark & lock_mask) == 0 and mark - sp < page_size, we are stack-locking and goto label
+    // locked, hence we can store 0 as the displaced header in the box, which indicates that it
+    // is a recursive lock.
     andr(tmp/*==0?*/, disp_hdr, tmp);
     sd(tmp/*==0, perhaps*/, Address(box, BasicLock::displaced_header_offset_in_bytes()));
-    beqz(tmp, locked);
+    beqz(tmp, locked_no_count);
     j(slow_path);
   }
 
   // Handle existing monitor.
   bind(object_has_monitor);
+
   // The object's monitor m is unlocked iff m->owner == nullptr,
-  // otherwise m->owner may contain a thread or a stack address.
+  // otherwise m->owner may contain a thread id, a stack address for LM_LEGACY,
+  // the ANONYMOUS_OWNER constant for LM_LIGHTWEIGHT.
   //
   // Try to CAS m->owner from null to current thread id.
-  Register tid = flag;
-  mv(tid, Address(xthread, JavaThread::lock_id_offset()));
   add(tmp, disp_hdr, (in_bytes(ObjectMonitor::owner_offset()) - markWord::monitor_value));
+  Register tid = disp_hdr;
+  ld(tid, Address(xthread, JavaThread::lock_id_offset()));
   cmpxchg(/*memory address*/tmp, /*expected value*/zr, /*new value*/tid, Assembler::int64,
           Assembler::aq, Assembler::rl, /*result*/tmp3Reg); // cas succeeds if tmp3Reg == zr(expected)
 
@@ -132,16 +134,21 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg,
   mv(tmp, (address)markWord::unused_mark().value());
   sd(tmp, Address(box, BasicLock::displaced_header_offset_in_bytes()));
 
-  beqz(tmp3Reg, locked); // CAS success means locking succeeded
+  beqz(tmp3Reg, locked_no_count); // CAS success means locking succeeded
 
   bne(tmp3Reg, tid, slow_path); // Check for recursive locking
 
   // Recursive lock case
+  // Reload markWord from object into displaced_header.
+  ld(disp_hdr, Address(oop, oopDesc::mark_offset_in_bytes()));
   increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset()) - markWord::monitor_value), 1, tmp2Reg, tmp3Reg);
+  j(slow_path);
 
-  bind(locked);
+  bind(locked_count);
+  inc_held_monitor_count();
+  // Fallthrough
+  bind(locked_no_count);
   mv(flag, zr);
-  increment(Address(xthread, JavaThread::held_monitor_count_offset()), 1, tmp2Reg, tmp3Reg);
 
 #ifdef ASSERT
   // Check that locked label is reached with flag == 0.
@@ -169,8 +176,8 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
   Register disp_hdr = tmp1Reg;
   Register tmp = tmp2Reg;
   Label object_has_monitor;
-  // Finish fast lock successfully. MUST branch to vwith flag == 0
-  Label unlocked;
+  // Finish fast lock successfully. MUST branch to with flag == 0
+  Label unlocked_count, unlocked_no_count;
   // Finish fast lock unsuccessfully. slow_path MUST branch to with flag != 0
   Label slow_path;
 
@@ -184,7 +191,7 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
     ld(disp_hdr, Address(box, BasicLock::displaced_header_offset_in_bytes()));
 
     // If the displaced header is 0, we have a recursive unlock.
-    beqz(disp_hdr, unlocked);
+    beqz(disp_hdr, unlocked_no_count);
   }
 
   // Handle existing monitor.
@@ -202,7 +209,7 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
 
     cmpxchg(/*memory address*/oop, /*expected value*/box, /*new value*/disp_hdr, Assembler::int64,
             Assembler::relaxed, Assembler::rl, /*result*/tmp);
-    beq(box, tmp, unlocked); // box == tmp if cas succeeds
+    beq(box, tmp, unlocked_count); // box == tmp if cas succeeds
     j(slow_path);
   }
 
@@ -213,6 +220,26 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
   STATIC_ASSERT(markWord::monitor_value <= INT_MAX);
   add(tmp, tmp, -(int)markWord::monitor_value); // monitor
 
+  Label skip_fix_owner;
+  // If the owner is anonymous, we need to fix it.
+  Register tmp2 = disp_hdr;
+  ld(tmp2, Address(tmp, ObjectMonitor::owner_offset()));
+  mv(t0, (uint64_t)ObjectMonitor::ANONYMOUS_OWNER);
+  bne(tmp2, t0, skip_fix_owner);
+
+  // Fix owner to be the current thread.
+  ld(tmp2, Address(xthread, JavaThread::lock_id_offset()));
+  sd(tmp2, Address(tmp, ObjectMonitor::owner_offset()));
+  // Pop owner object from lock-stack.
+  lwu(tmp2, Address(xthread, JavaThread::lock_stack_top_offset()));
+  subw(tmp2, tmp2, oopSize);
+#ifdef ASSERT
+  add(t0, xthread, tmp2);
+  sd(zr, Address(t0, 0));
+#endif
+  sw(tmp2, Address(xthread, JavaThread::lock_stack_top_offset()));
+
+  bind(skip_fix_owner);
   ld(disp_hdr, Address(tmp, ObjectMonitor::recursions_offset()));
 
   Label notRecursive;
@@ -221,7 +248,7 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
   // Recursive lock
   addi(disp_hdr, disp_hdr, -1);
   sd(disp_hdr, Address(tmp, ObjectMonitor::recursions_offset()));
-  j(unlocked);
+  j(unlocked_no_count);
 
   bind(notRecursive);
   ld(t0, Address(tmp, ObjectMonitor::EntryList_offset()));
@@ -233,10 +260,13 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
   la(tmp, Address(tmp, ObjectMonitor::owner_offset()));
   membar(MacroAssembler::LoadStore | MacroAssembler::StoreStore);
   sd(zr, Address(tmp)); // set unowned
+  j(slow_path);
 
-  bind(unlocked);
+  bind(unlocked_count);
+  dec_held_monitor_count();
+  // Fallthrough
+  bind(unlocked_no_count);
   mv(flag, zr);
-  decrement(Address(xthread, JavaThread::held_monitor_count_offset()), 1, tmp1Reg, tmp2Reg);
 
 #ifdef ASSERT
   // Check that unlocked label is reached with flag == 0.
@@ -255,12 +285,13 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
   // C2 uses the value of flag (0 vs !0) to determine the continuation.
 }
 
-void C2_MacroAssembler::fast_lock_lightweight(Register obj, Register tmp1, Register tmp2, Register tmp3) {
+void C2_MacroAssembler::fast_lock_lightweight(Register obj, Register tmp1,
+                                              Register tmp2, Register tmp3, Register tmp4) {
   // Flag register, zero for success; non-zero for failure.
   Register flag = t1;
 
   assert(LockingMode == LM_LIGHTWEIGHT, "must be");
-  assert_different_registers(obj, tmp1, tmp2, tmp3, flag, t0);
+  assert_different_registers(obj, tmp1, tmp2, tmp3, tmp4, flag, t0);
 
   mv(flag, 1);
 
@@ -335,14 +366,13 @@ void C2_MacroAssembler::fast_lock_lightweight(Register obj, Register tmp1, Regis
     la(tmp2_owner_addr, Address(tmp1_tagged_monitor, (in_bytes(ObjectMonitor::owner_offset()) - monitor_tag)));
 
     // CAS owner (null => current thread id).
-    Register tid = flag;
-    mv(tid, Address(xthread, JavaThread::lock_id_offset()));
-    cmpxchg(/*addr*/ tmp2_owner_addr, /*expected*/ zr, /*new*/ tid, Assembler::int64,
+    ld(tmp4, Address(xthread, JavaThread::lock_id_offset()));
+    cmpxchg(/*addr*/ tmp2_owner_addr, /*expected*/ zr, /*new*/ tmp4, Assembler::int64,
             /*acquire*/ Assembler::aq, /*release*/ Assembler::relaxed, /*result*/ tmp3_owner);
     beqz(tmp3_owner, locked);
 
     // Check if recursive.
-    bne(tmp3_owner, tid, slow_path);
+    bne(tmp3_owner, tmp4, slow_path);
 
     // Recursive.
     increment(Address(tmp1_tagged_monitor, in_bytes(ObjectMonitor::recursions_offset()) - monitor_tag), 1, tmp2, tmp3);
@@ -350,7 +380,6 @@ void C2_MacroAssembler::fast_lock_lightweight(Register obj, Register tmp1, Regis
 
   bind(locked);
   mv(flag, zr);
-  increment(Address(xthread, JavaThread::held_monitor_count_offset()), 1, tmp2, tmp3);
 
 #ifdef ASSERT
   // Check that locked label is reached with flag == 0.
@@ -492,10 +521,9 @@ void C2_MacroAssembler::fast_unlock_lightweight(Register obj, Register tmp1, Reg
 
     // The owner may be anonymous and we removed the last obj entry in
     // the lock-stack. This loses the information about the owner.
-    // Write the thread to the owner field so the runtime knows the owner.
-    Register tid = flag;
-    mv(tid, Address(xthread, JavaThread::lock_id_offset()));
-    sd(tid, Address(tmp2_owner_addr));
+    // Write the thread id to the owner field so the runtime knows the owner.
+    ld(tmp3_t, Address(xthread, JavaThread::lock_id_offset()));
+    sd(tmp3_t, Address(tmp2_owner_addr));
     j(slow_path);
 
     bind(release);
@@ -506,7 +534,6 @@ void C2_MacroAssembler::fast_unlock_lightweight(Register obj, Register tmp1, Reg
 
   bind(unlocked);
   mv(flag, zr);
-  decrement(Address(xthread, JavaThread::held_monitor_count_offset()), 1, tmp2, tmp3);
 
 #ifdef ASSERT
   // Check that unlocked label is reached with flag == 0.

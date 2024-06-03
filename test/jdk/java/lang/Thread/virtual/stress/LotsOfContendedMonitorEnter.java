@@ -24,21 +24,21 @@
 /*
  * @test id=default
  * @summary Test virtual threads entering a lot of monitors with contention
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @library /test/lib
  * @run main/othervm LotsOfContendedMonitorEnter
  */
 
 /*
  * @test id=LM_LEGACY
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @library /test/lib
  * @run main/othervm -XX:LockingMode=1 LotsOfContendedMonitorEnter
  */
 
 /*
  * @test id=LM_LIGHTWEIGHT
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @library /test/lib
  * @run main/othervm -XX:LockingMode=2 LotsOfContendedMonitorEnter
  */

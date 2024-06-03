@@ -24,7 +24,7 @@
 /*
  * @test id=default
  * @summary Test virtual thread with monitor enter/exit
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @modules java.base/java.lang:+open
  * @library /test/lib
  * @run junit/othervm --enable-native-access=ALL-UNNAMED MonitorEnterExit
@@ -32,7 +32,7 @@
 
 /*
  * @test id=LM_LEGACY
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @modules java.base/java.lang:+open
  * @library /test/lib
  * @run junit/othervm -XX:LockingMode=1 --enable-native-access=ALL-UNNAMED MonitorEnterExit
@@ -40,7 +40,7 @@
 
 /*
  * @test id=LM_LIGHTWEIGHT
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @modules java.base/java.lang:+open
  * @library /test/lib
  * @run junit/othervm -XX:LockingMode=2 --enable-native-access=ALL-UNNAMED MonitorEnterExit
@@ -48,7 +48,7 @@
 
 /*
  * @test id=Xint-LM_LEGACY
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @modules java.base/java.lang:+open
  * @library /test/lib
  * @run junit/othervm -Xint -XX:LockingMode=1 --enable-native-access=ALL-UNNAMED MonitorEnterExit
@@ -56,7 +56,7 @@
 
 /*
  * @test id=Xint-LM_LIGHTWEIGHT
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @modules java.base/java.lang:+open
  * @library /test/lib
  * @run junit/othervm -Xint -XX:LockingMode=2 --enable-native-access=ALL-UNNAMED MonitorEnterExit
@@ -64,7 +64,7 @@
 
 /*
  * @test id=Xcomp-TieredStopAtLevel1-LM_LEGACY
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @modules java.base/java.lang:+open
  * @library /test/lib
  * @run junit/othervm -Xcomp -XX:TieredStopAtLevel=1 -XX:LockingMode=1 --enable-native-access=ALL-UNNAMED MonitorEnterExit
@@ -79,7 +79,7 @@
 
 /*
  * @test id=Xcomp-noTieredCompilation-LM_LEGACY
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @modules java.base/java.lang:+open
  * @library /test/lib
  * @run junit/othervm -Xcomp -XX:-TieredCompilation -XX:LockingMode=1 --enable-native-access=ALL-UNNAMED MonitorEnterExit
@@ -87,7 +87,7 @@
 
 /*
  * @test id=Xcomp-noTieredCompilation-LM_LIGHTWEIGHT
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  * @modules java.base/java.lang:+open
  * @library /test/lib
  * @run junit/othervm -Xcomp -XX:-TieredCompilation -XX:LockingMode=2 --enable-native-access=ALL-UNNAMED MonitorEnterExit
