@@ -53,8 +53,6 @@ java/net/DatagramSocket/InterruptibleDatagramSocket.java 0000000 generic-all
 # Underlying implementation is non-blocking
 java/nio/channels/SocketChannel/ShortWrite.java 0000000 generic-all
 
-sun/security/ssl/SSLSessionImpl/ResumptionUpdateBoundValues.java 8325384 generic-all
-
 jdk/jfr/event/compiler/TestCompilerCompile.java 8325392 generic-all
 
 
@@ -110,6 +108,7 @@ com/sun/management/ThreadMXBean/ThreadAllocatedMemory.java#Serial 0000000 generi
 java/lang/management/ManagementFactory/ProxyTypeMapping.java 0000000 generic-all
 java/lang/management/ManagementFactory/ValidateOpenTypes.java 0000000 generic-all
 java/lang/management/ThreadMXBean/Locks.java 0000000 generic-all
+java/lang/management/ThreadMXBean/LockedMonitorInNative.java generic-all
 java/lang/management/ThreadMXBean/ThreadCpuTime.java 0000000 generic-all
 java/lang/management/ThreadMXBean/ThreadUserTime.java 0000000 generic-all
 
