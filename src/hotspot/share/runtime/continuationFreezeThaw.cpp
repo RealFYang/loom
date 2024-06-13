@@ -2330,14 +2330,12 @@ template <typename ConfigT>
 NOINLINE intptr_t* Thaw<ConfigT>::thaw_slow(stackChunkOop chunk, Continuation::thaw_kind kind) {
   bool retry_fast_path = false;
 
-  int preempt_kind;
   bool preempted_case = _cont.is_preempted();
   if (preempted_case) {
     if (chunk->object_waiter() != nullptr) {
       assert(chunk->current_pending_monitor() != nullptr || chunk->current_waiting_monitor() != nullptr, "");
       return push_resume_monitor_operation(chunk);
     }
-    preempt_kind = _cont.tail()->get_and_clear_preempt_kind();
     retry_fast_path = true;
   }
 
@@ -2368,6 +2366,7 @@ NOINLINE intptr_t* Thaw<ConfigT>::thaw_slow(stackChunkOop chunk, Continuation::t
   if (retry_fast_path && can_thaw_fast(chunk)) {
     intptr_t* sp = thaw_fast(chunk);
     if (preempted_case) {
+      int preempt_kind = chunk->get_and_clear_preempt_kind();
       return handle_preempted_continuation(sp, preempt_kind, true /* fast_case */);
     }
     return sp;
@@ -2418,6 +2417,7 @@ NOINLINE intptr_t* Thaw<ConfigT>::thaw_slow(stackChunkOop chunk, Continuation::t
   intptr_t* sp = caller.sp();
 
   if (preempted_case) {
+    int preempt_kind = chunk->get_and_clear_preempt_kind();
     return handle_preempted_continuation(sp, preempt_kind, false /* fast_case */);
   }
   return sp;
