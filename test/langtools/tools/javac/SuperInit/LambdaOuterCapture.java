@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,20 +20,27 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 /*
  * @test
- * @summary Basic test for jcmd Thread.vthread_scheduler
- * @library /test/lib
- * @run main/othervm VThreadSchedulerTest
+ * @bug 8194743
+ * @summary Test lambda declared in early construction context
+ * @enablePreview
  */
 
-import jdk.test.lib.dcmd.PidJcmdExecutor;
-import jdk.test.lib.process.OutputAnalyzer;
+public class LambdaOuterCapture {
 
-public class VThreadSchedulerTest {
-    public static void main(String[] args) throws Exception {
-        OutputAnalyzer output = new PidJcmdExecutor().execute("Thread.vthread_scheduler");
-        output.shouldContain("parallelism");
+    public class Inner {
+
+        public Inner() {
+            Runnable r = () -> System.out.println(LambdaOuterCapture.this);
+            this(r);
+        }
+
+        public Inner(Runnable r) {
+        }
+    }
+
+    public static void main(String[] args) {
+        new LambdaOuterCapture().new Inner();
     }
 }

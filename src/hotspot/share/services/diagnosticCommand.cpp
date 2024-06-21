@@ -129,7 +129,7 @@ void DCmd::register_dcmds(){
 #endif // INCLUDE_JVMTI
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ThreadDumpDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ThreadDumpToFileDCmd>(full_export, true, false));
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VThreadSchedulerDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VThreadSummaryDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassLoaderStatsDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassLoaderHierarchyDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompileQueueDCmd>(full_export, true, false));
@@ -1164,11 +1164,11 @@ void ThreadDumpToFileDCmd::dumpToFile(Symbol* name, Symbol* signature, const cha
   output()->print_raw((const char*)addr, ba->length());
 }
 
-void VThreadSchedulerDCmd::execute(DCmdSource source, TRAPS) {
+void VThreadSummaryDCmd::execute(DCmdSource source, TRAPS) {
   ResourceMark rm(THREAD);
   HandleMark hm(THREAD);
 
-  Symbol* sym = vmSymbols::java_lang_VirtualThread();
+  Symbol* sym = vmSymbols::jdk_internal_vm_VThreadSummary();
   Klass* k = SystemDictionary::resolve_or_fail(sym, true, CHECK);
   if (HAS_PENDING_EXCEPTION) {
     java_lang_Throwable::print(PENDING_EXCEPTION, output());
@@ -1177,12 +1177,12 @@ void VThreadSchedulerDCmd::execute(DCmdSource source, TRAPS) {
     return;
   }
 
-  // invoke printDefaultScheduler method
+  // invoke VThreadSummary.print method
   JavaValue result(T_OBJECT);
   JavaCallArguments args;
   JavaCalls::call_static(&result,
                          k,
-                         vmSymbols::printDefaultScheduler_name(),
+                         vmSymbols::print_name(),
                          vmSymbols::void_byte_array_signature(),
                          &args,
                          THREAD);
@@ -1243,11 +1243,11 @@ SystemDumpMapDCmd::SystemDumpMapDCmd(outputStream* output, bool heap) :
 void SystemDumpMapDCmd::execute(DCmdSource source, TRAPS) {
   stringStream defaultname;
   const char* name = nullptr;
-  if (::strcmp(default_filename, _filename.value()) == 0) {
+  if (_filename.is_set()) {
+    name = _filename.value();
+  } else {
     defaultname.print("vm_memory_map_%d.txt", os::current_process_id());
     name = defaultname.base();
-  } else {
-    name = _filename.value();
   }
   fileStream fs(name);
   if (fs.is_open()) {

@@ -26,7 +26,9 @@ package sun.nio.ch;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -34,13 +36,14 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 import jdk.internal.misc.InnocuousThread;
+import jdk.internal.vm.VThreadSummary;
 import sun.security.action.GetPropertyAction;
 
 /**
  * Polls file descriptors. Virtual threads invoke the poll method to park
  * until a given file descriptor is ready for I/O.
  */
-abstract class Poller {
+public abstract class Poller {
     private static final Pollers POLLERS;
     static {
         try {
@@ -50,6 +53,9 @@ abstract class Poller {
         } catch (IOException ioe) {
             throw new ExceptionInInitializerError(ioe);
         }
+
+        // notify serviceability support that the poller I/O mechanism has started
+        VThreadSummary.pollerInitialized();
     }
 
     // maps file descriptors to parked Thread
@@ -206,9 +212,9 @@ abstract class Poller {
         assert previous == null;
         try {
             implRegister(fdVal);
-        } catch (IOException ioe) {
+        } catch (Throwable t) {
             map.remove(fdVal);
-            throw ioe;
+            throw t;
         }
     }
 
@@ -270,6 +276,11 @@ abstract class Poller {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public String toString() {
+        return Objects.toIdentityString(this) + " [registered = " + map.size() + "]";
     }
 
     /**
@@ -382,6 +393,21 @@ abstract class Poller {
         }
 
         /**
+         * Return the list of read pollers.
+         */
+        List<Poller> readPollers() {
+            return List.of(readPollers);
+        }
+
+        /**
+         * Return the list of write pollers.
+         */
+        List<Poller> writePollers() {
+            return List.of(writePollers);
+        }
+
+
+        /**
          * Reads the given property name to get the poller count. If the property is
          * set then the value must be a power of 2. Returns 1 if the property is not
          * set.
@@ -413,5 +439,26 @@ abstract class Poller {
                 throw new InternalError(e);
             }
         }
+    }
+
+    /**
+     * Return the master poller or null if there is no master poller.
+     */
+    public static Poller masterPoller() {
+        return POLLERS.masterPoller();
+    }
+
+    /**
+     * Return the list of read pollers.
+     */
+    public static List<Poller> readPollers() {
+        return POLLERS.readPollers();
+    }
+
+    /**
+     * Return the list of write pollers.
+     */
+    public static List<Poller> writePollers() {
+        return POLLERS.writePollers();
     }
 }

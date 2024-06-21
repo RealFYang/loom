@@ -830,6 +830,12 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     MetaspaceShared::preload_and_dump();
   }
 
+  if (log_is_enabled(Info, perf, class, link)) {
+    LogStreamHandle(Info, perf, class, link) log;
+    log.print_cr("At VM initialization completion:");
+    ClassLoader::print_counters(&log);
+  }
+
   return JNI_OK;
 }
 
@@ -1317,6 +1323,11 @@ void Threads::print_on(outputStream* st, bool print_stacks,
         p->trace_stack();
       } else {
         p->print_stack_on(st);
+        if (p->is_vthread_mounted()) {
+          // _lock_id is the thread ID of the mounted virtual thread
+          st->print_cr("   Mounted virtual thread #" INT64_FORMAT, p->lock_id());
+          p->print_vthread_stack_on(st);
+        }
       }
     }
     st->cr();
