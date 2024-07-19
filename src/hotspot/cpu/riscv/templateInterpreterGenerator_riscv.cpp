@@ -1189,8 +1189,13 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   __ membar(MacroAssembler::LoadStore | MacroAssembler::StoreStore);
   __ sw(t0, Address(t1));
 
+  __ push_cont_fastpath();
+
   // Call the native method.
   __ jalr(x28);
+
+  __ pop_cont_fastpath();
+
   __ get_method(xmethod);
   // result potentially in x10 or f10
 
