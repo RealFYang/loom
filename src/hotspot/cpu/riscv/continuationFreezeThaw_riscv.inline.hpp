@@ -316,7 +316,7 @@ inline intptr_t* ThawBase::push_resume_adapter(frame& top) {
                   RegisterMap::WalkContinuation::skip);
   frame caller = top.sender(&map);
   intptr_t link_addr = (intptr_t)ContinuationHelper::Frame::callee_link_address(caller);
-  assert(sp[-2] == link_addr, "wrong link address: " INTPTR_FORMAT " != " INTPTR_FORMAT, sp[-2], link_addr);
+  assert(sp[-2] >= link_addr, "wrong link address: " INTPTR_FORMAT " < " INTPTR_FORMAT, sp[-2], link_addr);
 #endif
 
   bool interpreted = top.is_interpreted_frame();
@@ -328,7 +328,7 @@ inline intptr_t* ThawBase::push_resume_adapter(frame& top) {
     // property where we can retrieve the last_Java_pc from the last_Java_sp. But that means that
     // once we return to the runtime stub, the code will adjust sp according to this real size.
     // So we must adjust the frame size back here. We just copy ra/fp again. These 2 top words
-    // will be the ones popped in generate_cont_preempt_rerun_compiler_adapter(). The other 2 word                                                                                                     s
+    // will be the ones popped in generate_cont_preempt_rerun_compiler_adapter(). The other 2 words
     // will just be discarded once back in the runtime stub (add sp, sp, #0x10).
     sp -= 2;
     sp[-2] = sp[0];
