@@ -3945,7 +3945,7 @@ class StubGenerator: public StubCodeGenerator {
     // We have the lock now, just return to caller (we will actually hit the
     // return barrier to thaw more frames)
 
-    // ThawBase::push_preempt_monitorenter_redo set things up so that
+    // ThawBase::push_resume_monitor_operation set things up so that
     // SP now points to {fp, ra}.
     __ ld(fp, Address(sp));
     __ ld(ra, Address(sp, wordSize));

@@ -337,7 +337,7 @@ inline intptr_t* ThawBase::push_resume_adapter(frame& top) {
 
   intptr_t* fp = sp - frame::sender_sp_offset;
   address pc = interpreted ? Interpreter::cont_resume_interpreter_adapter()
-                             : StubRoutines::cont_resume_compiler_adapter();
+                           : StubRoutines::cont_resume_compiler_adapter();
 
   sp -= frame::metadata_words;
   *(address*)(sp - frame::sender_sp_ret_address_offset()) = pc;
