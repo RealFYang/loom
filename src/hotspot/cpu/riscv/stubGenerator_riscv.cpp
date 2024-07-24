@@ -3891,7 +3891,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ bind(preemption_cancelled);
     __ sb(zr, Address(xthread, JavaThread::preemption_cancelled_offset()));
-    __ la(fp, Address(sp, checked_cast<int32_t>(ContinuationEntry::size())));
+    __ la(fp, Address(sp, checked_cast<int32_t>(ContinuationEntry::size() + 2 * wordSize)));
     __ la(t0, ExternalAddress((address)&ContinuationEntry::_thaw_call_pc));
     __ ld(t0, Address(t0));
     __ jr(t0);
