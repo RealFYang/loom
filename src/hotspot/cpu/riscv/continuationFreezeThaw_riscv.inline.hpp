@@ -320,7 +320,7 @@ inline intptr_t* ThawBase::push_resume_adapter(frame& top) {
 #endif
 
   bool interpreted = top.is_interpreted_frame();
-  if (!interpreted && cb->frame_size() == 2) {
+  if (!interpreted && cb->frame_size() == 4) {
     // C2 runtime stub case. For riscv64 the real size of the c2 runtime stub is 2 words bigger
     // than what we think, i.e. size is 4. This is because the _last_Java_sp is not set to the
     // sp right before making the call to the VM, but rather it is artificially set 2 words above
@@ -328,7 +328,7 @@ inline intptr_t* ThawBase::push_resume_adapter(frame& top) {
     // property where we can retrieve the last_Java_pc from the last_Java_sp. But that means that
     // once we return to the runtime stub, the code will adjust sp according to this real size.
     // So we must adjust the frame size back here. We just copy ra/fp again. These 2 top words
-    // will be the ones popped in generate_cont_preempt_rerun_compiler_adapter(). The other 2 words
+    // will be the ones popped in generate_cont_resume_compiler_adapter(). The other 2 words
     // will just be discarded once back in the runtime stub (add sp, sp, #0x10).
     sp -= 2;
     sp[-2] = sp[0];
