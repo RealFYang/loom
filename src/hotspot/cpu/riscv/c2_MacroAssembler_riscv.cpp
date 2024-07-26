@@ -230,14 +230,8 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
   // Fix owner to be the current thread.
   ld(tmp2, Address(xthread, JavaThread::lock_id_offset()));
   sd(tmp2, Address(tmp, ObjectMonitor::owner_offset()));
-  // Pop owner object from lock-stack.
-  lwu(tmp2, Address(xthread, JavaThread::lock_stack_top_offset()));
-  subw(tmp2, tmp2, oopSize);
-#ifdef ASSERT
-  add(t0, xthread, tmp2);
-  sd(zr, Address(t0, 0));
-#endif
-  sw(tmp2, Address(xthread, JavaThread::lock_stack_top_offset()));
+  sd(zr, Address(tmp, ObjectMonitor::stack_locker_offset()));
+  dec_held_monitor_count();
 
   bind(skip_fix_owner);
   ld(disp_hdr, Address(tmp, ObjectMonitor::recursions_offset()));
