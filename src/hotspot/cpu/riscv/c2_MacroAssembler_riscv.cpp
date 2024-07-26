@@ -254,7 +254,7 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
   la(tmp, Address(tmp, ObjectMonitor::owner_offset()));
   membar(MacroAssembler::LoadStore | MacroAssembler::StoreStore);
   sd(zr, Address(tmp)); // set unowned
-  j(slow_path);
+  j(unlocked_no_count);
 
   bind(unlocked_count);
   dec_held_monitor_count();
