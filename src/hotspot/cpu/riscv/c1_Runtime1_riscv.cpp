@@ -918,7 +918,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       // fall through
     case monitorenter_id:
       {
-        StubFrame f(sasm, "monitorenter", dont_gc_arguments);
+        StubFrame f(sasm, "monitorenter", dont_gc_arguments, /*use_pop_on_epilogue*/true);
         OopMap* map = save_live_registers(sasm, save_fpu_registers);
         assert_cond(map != nullptr);
 
@@ -940,7 +940,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       // fall through
     case monitorexit_id:
       {
-        StubFrame f(sasm, "monitorexit", dont_gc_arguments, /*use_pop_on_epilogue*/true);
+        StubFrame f(sasm, "monitorexit", dont_gc_arguments);
         OopMap* map = save_live_registers(sasm, save_fpu_registers);
         assert_cond(map != nullptr);
 
