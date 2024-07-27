@@ -215,7 +215,8 @@ inline void Thaw<ConfigT>::patch_caller_links(intptr_t* sp, intptr_t* bottom) {
 
 inline frame ThawBase::new_entry_frame() {
   intptr_t* sp = _cont.entrySP();
-  return frame(sp, sp, _cont.entryFP(), _cont.entryPC()); // TODO PERF: This finds code blob and computes deopt state
+  // TODO PERF: This finds code blob and computes deopt state
+  return frame(sp, sp, _cont.entryFP(), _cont.entryPC());
 }
 
 template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame& caller, bool bottom) {
@@ -263,13 +264,16 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
     intptr_t* fp;
     if (PreserveFramePointer) {
       // we need to recreate a "real" frame pointer, pointing into the stack
-      fp = frame_sp + FKind::size(hf) - 2;
+      fp = frame_sp + FKind::size(hf) - frame::sender_sp_offset;
     } else {
       fp = FKind::stub || FKind::native
-        ? frame_sp + fsize - 2 // fp always points to the address above the pushed return pc. We need correct address.
-        : *(intptr_t**)(hf.sp() - 2); // we need to re-read fp because it may be an oop and we might have fixed the frame.
+        // fp always points to the address above the pushed return pc. We need correct address.
+        ? frame_sp + fsize - frame::sender_sp_offset
+        // we need to re-read fp because it may be an oop and we might have fixed the frame.
+        : *(intptr_t**)(hf.sp() - 2);
     }
-    return frame(frame_sp, frame_sp, fp, hf.pc(), hf.cb(), hf.oop_map(), false); // TODO PERF : this computes deopt state; is it necessary?
+    // TODO PERF : this computes deopt state; is it necessary?
+    return frame(frame_sp, frame_sp, fp, hf.pc(), hf.cb(), hf.oop_map(), false);
   }
 }
 
@@ -316,7 +320,7 @@ inline intptr_t* ThawBase::push_resume_adapter(frame& top) {
                   RegisterMap::WalkContinuation::skip);
   frame caller = top.sender(&map);
   intptr_t link_addr = (intptr_t)ContinuationHelper::Frame::callee_link_address(caller);
-  assert(sp[-2] >= link_addr, "wrong link address: " INTPTR_FORMAT " < " INTPTR_FORMAT, sp[-2], link_addr);
+  assert(sp[-2] == link_addr + 16, "wrong link address: " INTPTR_FORMAT " != " INTPTR_FORMAT, sp[-2], link_addr + 16);
 #endif
 
   bool interpreted = top.is_interpreted_frame();
