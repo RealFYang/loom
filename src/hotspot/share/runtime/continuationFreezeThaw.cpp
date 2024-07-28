@@ -3146,6 +3146,18 @@ static void log_frames_after_thaw(JavaThread* thread, ContinuationWrapper& cont,
         }
       }
 #endif
+#ifdef RISCV64
+      else {
+        // Monitorenter case returning to c2 runtime stub requires extra
+        // adjustment on riscv64 (see push_resume_adapter()).
+        address pc1 = *(address*)(sp0 - frame::sender_sp_ret_address_offset());
+        CodeBlob* cb = CodeCache::find_blob(pc1);
+        assert(cb != nullptr, "should be either c1 or c2 runtime stub");
+        if (cb->frame_size() == 4) {
+          sp0 += frame::metadata_words;
+        }
+      }
+#endif
     }
   } else if (pc0 == StubRoutines::cont_resume_monitor_operation()) {
     // Redoing monitor operation after being preempted case. We skip
