@@ -242,7 +242,6 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg,
   // Recursive lock
   addi(disp_hdr, disp_hdr, -1);
   sd(disp_hdr, Address(tmp, ObjectMonitor::recursions_offset()));
-  bnez(disp_hdr, slow_path);
   j(unlocked_no_count);
 
   bind(notRecursive);
