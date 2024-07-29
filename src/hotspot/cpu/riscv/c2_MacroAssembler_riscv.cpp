@@ -142,7 +142,7 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg,
   // Reload markWord from object into displaced_header.
   ld(disp_hdr, Address(oop, oopDesc::mark_offset_in_bytes()));
   increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset()) - markWord::monitor_value), 1, tmp2Reg, tmp3Reg);
-  j(slow_path);
+  j(locked_no_count);
 
   bind(locked_count);
   inc_held_monitor_count();
