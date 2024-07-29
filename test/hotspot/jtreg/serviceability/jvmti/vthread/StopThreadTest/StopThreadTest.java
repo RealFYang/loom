@@ -125,7 +125,7 @@ public class StopThreadTest {
             log("\nMain #A.2: suspended");
             suspendThread(testTaskThread);
             retCode = stopThread(testTaskThread);
-            int expectedRetCode = (is_virtual && !isBoundVThread && (Platform.isX64() || Platform.isAArch64()) || Platform.isRISCV64()) ?
+            int expectedRetCode = (is_virtual && !isBoundVThread && (Platform.isX64() || Platform.isAArch64() || Platform.isRISCV64())) ?
                 JVMTI_ERROR_OPAQUE_FRAME : JVMTI_ERROR_NONE;
             String expectedRetCodeName = (is_virtual && !isBoundVThread && (Platform.isX64() || Platform.isAArch64() || Platform.isRISCV64())) ?
                 "JVMTI_ERROR_OPAQUE_FRAME" : "JVMTI_ERROR_NONE";
