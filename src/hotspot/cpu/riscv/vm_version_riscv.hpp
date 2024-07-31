@@ -283,7 +283,6 @@ class VM_Version : public Abstract_VM_Version {
 
   // RISCV64 supports fast class initialization checks
   static bool supports_fast_class_init_checks() { return true; }
-  static bool supports_cont_preemption() { return true; }
 };
 
 #endif // CPU_RISCV_VM_VERSION_RISCV_HPP

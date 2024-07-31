@@ -1639,8 +1639,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // be pushed on the stack when we do a stack traversal).
   // We use the same pc/oopMap repeatedly when we call out
 
-  Label resume_pc;
-  __ set_last_Java_frame(sp, noreg, resume_pc, t0);
+  Label native_return;
+  __ set_last_Java_frame(sp, noreg, native_return, t0);
 
   Label dtrace_method_entry, dtrace_method_entry_done;
   if (DTraceMethodProbes) {
@@ -1716,15 +1716,13 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       // Save the test result, for recursive case, the result is zero
       __ sd(swap_reg, Address(lock_reg, mark_word_offset));
       __ bnez(swap_reg, slow_path_lock);
-      __ j(lock_done);
+
+      __ bind(count);
+      __ inc_held_monitor_count();
     } else {
       assert(LockingMode == LM_LIGHTWEIGHT, "must be");
       __ lightweight_lock(obj_reg, swap_reg, tmp, lock_tmp, slow_path_lock);
-      __ j(lock_done);
     }
-
-    __ bind(count);
-    __ inc_held_monitor_count();
 
     // Slow path will re-enter here
     __ bind(lock_done);
@@ -1794,8 +1792,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ sw(t0, Address(t1));
   __ bind(after_transition);
 
-  // Check preemption for Object.wait()
-  if (method->is_object_wait0()) {
+  if (LockingMode != LM_LEGACY && method->is_object_wait0()) {
+    // Check preemption for Object.wait()
     Label not_preempted;
     __ ld(t0, Address(xthread, JavaThread::preempt_alternate_return_offset()));
     __ beqz(t0, not_preempted);
@@ -1803,7 +1801,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ jr(t0);
     __ bind(not_preempted);
   }
-  __ bind(resume_pc);
+  __ bind(native_return);
 
   intptr_t the_pc = (intptr_t) __ pc();
   oop_maps->add_gc_map(the_pc - start, map);
@@ -1831,6 +1829,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       // Simple recursive lock?
       __ ld(t0, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
       __ bnez(t0, not_recursive);
+      __ dec_held_monitor_count();
       __ j(done);
     }
 
@@ -1925,6 +1924,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ mv(c_rarg2, xthread);
 
     // Not a leaf but we have last_Java_frame setup as we want
+    // Force freeze slow path in case we try to preempt. We will pin the
+    // vthread to the carrier (see FreezeBase::recurse_freeze_native_frame()).
     __ push_cont_fastpath();
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_locking_C), 3);
     __ pop_cont_fastpath();

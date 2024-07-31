@@ -789,12 +789,11 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
       // Save the test result, for recursive case, the result is zero
       sd(swap_reg, Address(lock_reg, mark_offset));
       bnez(swap_reg, slow_case);
+
+      bind(count);
+      inc_held_monitor_count();
       j(done);
     }
-
-    bind(count);
-    inc_held_monitor_count();
-    j(done);
 
     bind(slow_case);
 
@@ -864,15 +863,15 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
                              BasicLock::displaced_header_offset_in_bytes()));
 
       // Test for recursion
-      beqz(header_reg, done);
+      beqz(header_reg, count);
 
       // Atomic swap back the old header
       cmpxchg_obj_header(swap_reg, header_reg, obj_reg, tmp_reg, count, &slow_case);
-    }
 
-    bind(count);
-    dec_held_monitor_count();
-    j(done);
+      bind(count);
+      dec_held_monitor_count();
+      j(done);
+    }
 
     bind(slow_case);
     // Call the runtime routine for slow case.

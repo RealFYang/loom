@@ -3792,9 +3792,7 @@ class StubGenerator: public StubCodeGenerator {
     // If we want, we can templatize thaw by kind, and have three different entries
     __ mv(c_rarg1, kind);
 
-    __ set_last_Java_frame(sp, fp, noreg);
     __ call_VM_leaf(Continuation::thaw_entry(), xthread, c_rarg1);
-    __ reset_last_Java_frame(true);
     __ mv(t1, x10); // x10 is the sp of the yielding frame
 
     if (return_barrier) {

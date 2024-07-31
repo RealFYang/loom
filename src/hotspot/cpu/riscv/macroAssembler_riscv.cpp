@@ -811,7 +811,6 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
                                        Label *retaddr) {
   int32_t offset = 0;
   push_reg(RegSet::of(t0, xmethod), sp);   // push << t0 & xmethod >> to sp
-  sd(zr, Address(xthread, JavaThread::preempt_alternate_return_offset()));
 
   mv(t0, entry_point, offset);
   jalr(t0, offset);
@@ -820,8 +819,7 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
   }
 
   Label not_preempted;
-  if (entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter) ||
-      entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter_obj)) {
+  if (entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter_obj)) {
     ld(t0, Address(xthread, JavaThread::preempt_alternate_return_offset()));
     beqz(t0, not_preempted);
     sd(zr, Address(xthread, JavaThread::preempt_alternate_return_offset()));
