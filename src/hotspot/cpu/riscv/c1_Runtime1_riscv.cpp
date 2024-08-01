@@ -196,10 +196,10 @@ void StubAssembler::prologue(const char* name, bool must_gc_arguments) {
 }
 
 void StubAssembler::epilogue(bool use_pop) {
-  // use_pop when this frame may have been frozen on one carrier
-  // thread then thawed on another carrier thread, rendering the fp
-  // register invalid. We must restore the previous FP because it is
-  // used as a call-saved scratch register by compiled code.
+  // Avoid using a leave instruction when this frame may
+  // have been frozen, since the current value of fp
+  // restored from the stub would be invalid. We still
+  // must restore the fp value saved on enter though.
   if (use_pop) {
     ld(fp, Address(sp));
     ld(ra, Address(sp, wordSize));
